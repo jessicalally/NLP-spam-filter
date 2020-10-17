@@ -1,14 +1,11 @@
 import re
-
 import nltk
 import pandas as pd
 from pandas import DataFrame
-from sklearn import metrics
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.svm import LinearSVC
-
 
 def pre_process_msg(msg: str) -> str:
     msg = msg.lower()
@@ -17,7 +14,6 @@ def pre_process_msg(msg: str) -> str:
     msg = remove_stop_words(msg)
     msg = remove_whitespace(msg)
     return stem(msg)
-
 
 def pre_process(data: DataFrame) -> DataFrame:
     for row in data:
@@ -75,24 +71,39 @@ def stem(msg: str) -> str:
     stemmer = nltk.PorterStemmer()
     return ' '.join(stemmer.stem(term) for term in msg.split())
 
+def classify_msgs(classifier: LinearSVC, vectorizer: TfidfVectorizer):
+    msg = input("Please enter a message to classify. Input \'q\' to exit the program. ")
+
+    while msg != "q":
+        is_spam = classifier.predict(vectorizer.transform([pre_process_msg(msg)]))
+
+        if is_spam:
+            print("This message is spam.")
+        else:
+            print("This message is not spam.")
+
+        msg = input("Please enter another message to classify: ")
 
 def main():
     data_set = pd.read_table('data/sms-dataset', header=None)
     label_encoder = LabelEncoder()
     # Encodes labels as 'spam' = 1 and 'ham' = 0
     encoded_labels = label_encoder.fit_transform(data_set[0])
+
+    # Normalises the data and performs stemming
     pre_processed = pre_process(data_set[1])
+
     # Performs bigram tokenization on messages and computes the tf-idf statistic
     vectorizer = TfidfVectorizer(ngram_range=(1, 2))
     bigrams = vectorizer.fit_transform(pre_processed)
 
+    # Trains model with SVM using an 80/20 split between training data and test data
     msg_train, msg_test, label_train, label_test = train_test_split(bigrams, encoded_labels, test_size=0.2,
                                                                     random_state=42, stratify=encoded_labels)
 
     classifier = LinearSVC(loss="hinge")
     classifier.fit(msg_train, label_train)
-    label_predictions = classifier.predict(msg_test)
-    print(metrics.f1_score(label_test, label_predictions))
 
+    classify_msgs(classifier, vectorizer)
 
 main()
