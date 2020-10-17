@@ -11,7 +11,7 @@ def pre_process(data: DataFrame) -> DataFrame:
         msg = remove_punctuation(msg)
         msg = remove_stop_words(msg)
         msg = remove_whitespace(msg)
-        msg = stemm(msg)
+        msg = stem(msg)
         data = data.replace(row, msg)
     return data
 
@@ -19,17 +19,17 @@ def replace_symbols(msg: str) -> str:
     # Normalises the input data by generifying phone numbers, email address, etc.
     regexes = [
         # Removes spaces between numbers for phone number processing
-        ('(?<=\d) +(?=\d)', ''),
+        (r'(?<=\d) +(?=\d)', ''),
         # Replaces email addresses
-        ('[\w\-.]+@([\w\-]+\.)+[\w\-]{2,10}', 'emailAddress'),
+        (r'[\w\-.]+@([\w\-]+\.)+[\w\-]{2,10}', 'emailAddress'),
         # Replaces domains and urls (matching all possible characters in urls)
-        ('\b(https?:\/\/)?[\/\w\-_\$\.\+!\*\'\(\)\,]+\.(\w{2,10})[\/\w\-_\$\.\+!\*\'\(\)\,]*', 'urlAddress'),
-        # Replaces currency symbols
-        ('[£$€]', 'currencySymbol'),
-        # Replaces phone numbers (inc. country code and hyphens)
-        ('(\+\d{1,3})?(\s\()?\d{3}(\)\s)?\d{7,8}', 'phoneNumber'),
+        (r'\b(https?:\/\/)?[\/\w\-_\$\.\+!\*\'\(\)\,]+\.(\w{2,10})[\/\w\-_\$\.\+!\*\'\(\)\,]*', 'urlAddress'),
         # Replaces numbers/decimals
-        ('\b\d+(\.\d+)?\b', 'numberSymbol')
+        (r'\b\d+(\.\d+)?\b', 'numberSymbol'),
+        # Replaces currency symbols
+        (r'[£$€]', 'currencySymbol'),
+        # Replaces phone numbers (inc. country code and hyphens)
+        (r'(\+\d{1,3})?(\s\()?\d{3}(\)\s)?\d{7,8}', 'phoneNumber')
     ]
 
     for regex, replacement in regexes:
@@ -39,12 +39,12 @@ def replace_symbols(msg: str) -> str:
 
 
 def remove_whitespace(msg: str) -> str:
-    processed = re.sub('\s+', ' ', msg)
-    processed = re.sub('(^\s+|\s+$)', '', processed)
+    processed = re.sub(r'\s+', ' ', msg)
+    processed = re.sub(r'(^\s+|\s+$)', '', processed)
     return processed
 
 def remove_punctuation(msg: str) -> str:
-    return re.sub('[^\w\d\s]', '', msg)
+    return re.sub(r'[^\w\d\s]', '', msg)
 
 def remove_stop_words(msg: str) -> str:
     # Removes stop words which do not contribute meaning in English phrases
@@ -57,7 +57,7 @@ def remove_stop_words(msg: str) -> str:
 
     return ' '.join(processed)
 
-def stemm(msg: str) -> str:
+def stem(msg: str) -> str:
     # Removes suffixes to reduce words to only their stem
     stemmer = nltk.PorterStemmer()
     return ' '.join(stemmer.stem(term) for term in msg.split())
