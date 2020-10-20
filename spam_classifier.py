@@ -1,5 +1,6 @@
 import re
 import nltk
+nltk.download('stopwords')
 import pandas as pd
 from pandas import DataFrame
 from scipy.sparse import csr_matrix
