@@ -2,6 +2,8 @@ import re
 import nltk
 import pandas as pd
 from pandas import DataFrame
+from scipy.sparse import csr_matrix
+from sklearn import metrics
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
@@ -20,9 +22,8 @@ def pre_process(data: DataFrame) -> DataFrame:
         data = data.replace(row, pre_process_msg(row))
     return data
 
-
+# Normalises the input data by generifying phone numbers, email address, etc.
 def replace_symbols(msg: str) -> str:
-    # Normalises the input data by generifying phone numbers, email address, etc.
     regexes = [
         # Removes spaces between numbers for phone number processing
         (r'(?<=\d) +(?=\d)', ''),
@@ -43,19 +44,16 @@ def replace_symbols(msg: str) -> str:
 
     return msg
 
-
 def remove_whitespace(msg: str) -> str:
     processed = re.sub(r'\s+', ' ', msg)
     processed = re.sub(r'(^\s+|\s+$)', '', processed)
     return processed
 
-
 def remove_punctuation(msg: str) -> str:
     return re.sub(r'[^\w\d\s]', '', msg)
 
-
+# Removes stop words which do not contribute meaning in English phrases
 def remove_stop_words(msg: str) -> str:
-    # Removes stop words which do not contribute meaning in English phrases
     stop_words = nltk.corpus.stopwords.words('english')
     processed = []
 
@@ -65,9 +63,8 @@ def remove_stop_words(msg: str) -> str:
 
     return ' '.join(processed)
 
-
+# Removes suffixes to reduce words to only their stem
 def stem(msg: str) -> str:
-    # Removes suffixes to reduce words to only their stem
     stemmer = nltk.PorterStemmer()
     return ' '.join(stemmer.stem(term) for term in msg.split())
 
@@ -84,6 +81,17 @@ def classify_msgs(classifier: LinearSVC, vectorizer: TfidfVectorizer):
 
         msg = input("Please enter another message to classify: ")
 
+# Estimates the accuracy of this model and prints this data to stdout
+def calculate_statistics(classifier: LinearSVC, msg_test: csr_matrix, label_test: csr_matrix):
+    label_pred = classifier.predict(msg_test)
+    print("Model accuracy: {}".format(metrics.f1_score(label_test, label_pred)))
+
+    print("Confusion matrix: \n{}".format(pd.DataFrame(
+        metrics.confusion_matrix(label_test, label_pred),
+        index=[['actual', 'actual'], ['spam', 'ham']],
+        columns=[['predicted', 'predicted'], ['spam', 'ham']]
+    )))
+
 def main():
     data_set = pd.read_table('data/sms-dataset', header=None)
     label_encoder = LabelEncoder()
@@ -97,13 +105,15 @@ def main():
     vectorizer = TfidfVectorizer(ngram_range=(1, 2))
     bigrams = vectorizer.fit_transform(pre_processed)
 
-    # Trains model with SVM using an 80/20 split between training data and test data
+    # Splits data into training and testing data with a 80/20 split
     msg_train, msg_test, label_train, label_test = train_test_split(bigrams, encoded_labels, test_size=0.2,
                                                                     random_state=42, stratify=encoded_labels)
 
+    # Trains model with SVM
     classifier = LinearSVC(loss="hinge")
     classifier.fit(msg_train, label_train)
-
     classify_msgs(classifier, vectorizer)
+
+    calculate_statistics(classifier, msg_test, label_test)
 
 main()
